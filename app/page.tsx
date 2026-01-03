@@ -1,65 +1,318 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+/**
+ * 首页 - HR配置页面
+ */
+
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import TestDurationSelector from '@/components/hr/TestDurationSelector';
+import TopicSelector from '@/components/hr/TopicSelector';
+import SharePanel from '@/components/hr/SharePanel';
+import { generateId, generateTestLink } from '@/lib/utils/helpers';
+import StorageManager from '@/lib/storage';
+import { HRConfig, TestConfig } from '@/types';
+
+// 表单验证schema
+const configSchema = z.object({
+  hrName: z.string().min(1, '姓名不能为空'),
+  hrEmail: z.string().email('请输入有效的邮箱地址'),
+  company: z.string().optional(),
+  department: z.string().optional(),
+  reportPassword: z.string().min(4, '密码至少4位'),
+  duration: z.number().min(5).max(60),
+  topic: z.string().min(1, '请选择或输入写作主题'),
+  topicDescription: z.string().optional(),
+});
+
+type ConfigFormData = z.infer<typeof configSchema>;
+
+export default function HomePage() {
+  const [step, setStep] = useState<'hr' | 'test' | 'share'>('hr');
+  const [hrConfig, setHRConfig] = useState<HRConfig | null>(null);
+  const [testConfig, setTestConfig] = useState<TestConfig | null>(null);
+  const [testLink, setTestLink] = useState('');
+
+  const [duration, setDuration] = useState(20);
+  const [topic, setTopic] = useState('');
+  const [topicDescription, setTopicDescription] = useState('');
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    setValue,
+  } = useForm<ConfigFormData>({
+    resolver: zodResolver(configSchema),
+    defaultValues: {
+      reportPassword: '8889',
+      duration: 20,
+    },
+  });
+
+  // 更新表单值
+  const updateFormValues = () => {
+    setValue('duration', duration);
+    setValue('topic', topic);
+    setValue('topicDescription', topicDescription);
+  };
+
+  const onSubmitHR = (data: ConfigFormData) => {
+    const config: HRConfig = {
+      id: generateId('hr'),
+      name: data.hrName,
+      email: data.hrEmail,
+      company: data.company,
+      department: data.department,
+      reportPassword: data.reportPassword || '8889',
+      createdAt: new Date().toISOString(),
+    };
+
+    StorageManager.saveHRConfig(config);
+    setHRConfig(config);
+    setStep('test');
+  };
+
+  const onSubmitTest = () => {
+    updateFormValues();
+    
+    if (!topic || topic.trim().length === 0) {
+      alert('请选择或输入写作主题');
+      return;
+    }
+
+    if (!hrConfig) return;
+
+    const testId = generateId('test');
+    const config: TestConfig = {
+      id: testId,
+      hrId: hrConfig.id,
+      duration: duration,
+      topic: topic,
+      topicDescription: topicDescription,
+      createdAt: new Date().toISOString(),
+    };
+
+    StorageManager.saveTestConfig(config);
+    setTestConfig(config);
+    
+    const link = generateTestLink(testId);
+    setTestLink(link);
+    setStep('share');
+  };
+
+  const handleReset = () => {
+    setStep('hr');
+    setHRConfig(null);
+    setTestConfig(null);
+    setTestLink('');
+    setDuration(20);
+    setTopic('');
+    setTopicDescription('');
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <div className="container mx-auto px-4 py-12">
+        {/* 页头 */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            英语写作测评系统
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-lg text-gray-600">
+            为候选人创建个性化的英语写作测试，获取专业的评估报告
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* 进度指示器 */}
+        <div className="max-w-3xl mx-auto mb-8">
+          <div className="flex items-center justify-center gap-4">
+            <div className={`flex items-center ${step === 'hr' ? 'text-blue-600' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 'hr' ? 'bg-blue-600 text-white' : 'bg-gray-300'}`}>
+                1
+              </div>
+              <span className="ml-2 font-medium">HR信息</span>
+            </div>
+            <div className="w-16 h-1 bg-gray-300"></div>
+            <div className={`flex items-center ${step === 'test' ? 'text-blue-600' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 'test' ? 'bg-blue-600 text-white' : 'bg-gray-300'}`}>
+                2
+              </div>
+              <span className="ml-2 font-medium">测试配置</span>
+            </div>
+            <div className="w-16 h-1 bg-gray-300"></div>
+            <div className={`flex items-center ${step === 'share' ? 'text-blue-600' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 'share' ? 'bg-blue-600 text-white' : 'bg-gray-300'}`}>
+                3
+              </div>
+              <span className="ml-2 font-medium">分享链接</span>
+            </div>
+          </div>
         </div>
-      </main>
-    </div>
+
+        {/* 表单内容 */}
+        <div className="max-w-3xl mx-auto">
+          {/* Step 1: HR信息 */}
+          {step === 'hr' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>HR信息配置</CardTitle>
+                <CardDescription>请填写您的基本信息</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit(onSubmitHR)} className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="hrName">
+                      姓名 <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="hrName"
+                      placeholder="请输入您的姓名"
+                      {...register('hrName')}
+                      className={errors.hrName ? 'border-red-500' : ''}
+                    />
+                    {errors.hrName && (
+                      <p className="text-sm text-red-500">{errors.hrName.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="hrEmail">
+                      邮箱 <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="hrEmail"
+                      type="email"
+                      placeholder="your.email@company.com"
+                      {...register('hrEmail')}
+                      className={errors.hrEmail ? 'border-red-500' : ''}
+                    />
+                    {errors.hrEmail && (
+                      <p className="text-sm text-red-500">{errors.hrEmail.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="company">公司名称（可选）</Label>
+                    <Input
+                      id="company"
+                      placeholder="请输入公司名称"
+                      {...register('company')}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="department">部门名称（可选）</Label>
+                    <Input
+                      id="department"
+                      placeholder="请输入部门名称"
+                      {...register('department')}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="reportPassword">
+                      报告访问密码 <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="reportPassword"
+                      type="password"
+                      placeholder="默认密码：8889"
+                      {...register('reportPassword')}
+                      className={errors.reportPassword ? 'border-red-500' : ''}
+                    />
+                    {errors.reportPassword && (
+                      <p className="text-sm text-red-500">{errors.reportPassword.message}</p>
+                    )}
+                    <p className="text-xs text-gray-500">
+                      此密码用于访问HR专业报告，请妥善保管
+                    </p>
+                  </div>
+
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? '保存中...' : '下一步'}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 2: 测试配置 */}
+          {step === 'test' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>测试参数配置</CardTitle>
+                <CardDescription>设置测试时长和写作主题</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <TestDurationSelector
+                  value={duration}
+                  onChange={setDuration}
+                />
+
+                <TopicSelector
+                  value={topic}
+                  description={topicDescription}
+                  onChange={(t, d) => {
+                    setTopic(t);
+                    setTopicDescription(d || '');
+                  }}
+                />
+
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setStep('hr')}
+                    className="flex-1"
+                  >
+                    上一步
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={onSubmitTest}
+                    className="flex-1"
+                  >
+                    生成测试链接
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 3: 分享链接 */}
+          {step === 'share' && testConfig && (
+            <div className="space-y-4">
+              <SharePanel testLink={testLink} testId={testConfig.id} />
+              
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleReset}
+                className="w-full"
+              >
+                创建新的测试
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* 页脚 */}
+        <footer className="mt-16 text-center text-sm text-gray-500">
+          <p>© 2024 英语写作测评系统. All rights reserved.</p>
+          <p className="mt-2">
+            <a href="/hr-reports" className="text-blue-600 hover:underline">
+              查看HR报告
+            </a>
+          </p>
+        </footer>
+      </div>
+    </main>
   );
 }
