@@ -19,19 +19,16 @@ import { generateId, generateTestLink } from '@/lib/utils/helpers';
 import StorageManager from '@/lib/storage';
 import { HRConfig, TestConfig } from '@/types';
 
-// 表单验证schema
-const configSchema = z.object({
+// HR表单验证schema（只验证HR信息）
+const hrConfigSchema = z.object({
   hrName: z.string().min(1, '姓名不能为空'),
   hrEmail: z.string().email('请输入有效的邮箱地址'),
   company: z.string().optional(),
   department: z.string().optional(),
   reportPassword: z.string().min(4, '密码至少4位'),
-  duration: z.number().min(5).max(60),
-  topic: z.string().min(1, '请选择或输入写作主题'),
-  topicDescription: z.string().optional(),
 });
 
-type ConfigFormData = z.infer<typeof configSchema>;
+type HRFormData = z.infer<typeof hrConfigSchema>;
 
 export default function HomePage() {
   const [step, setStep] = useState<'hr' | 'test' | 'share'>('hr');
@@ -47,23 +44,14 @@ export default function HomePage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    setValue,
-  } = useForm<ConfigFormData>({
-    resolver: zodResolver(configSchema),
+  } = useForm<HRFormData>({
+    resolver: zodResolver(hrConfigSchema),
     defaultValues: {
       reportPassword: '8889',
-      duration: 20,
     },
   });
 
-  // 更新表单值
-  const updateFormValues = () => {
-    setValue('duration', duration);
-    setValue('topic', topic);
-    setValue('topicDescription', topicDescription);
-  };
-
-  const onSubmitHR = (data: ConfigFormData) => {
+  const onSubmitHR = (data: HRFormData) => {
     const config: HRConfig = {
       id: generateId('hr'),
       name: data.hrName,
@@ -80,8 +68,6 @@ export default function HomePage() {
   };
 
   const onSubmitTest = () => {
-    updateFormValues();
-    
     if (!topic || topic.trim().length === 0) {
       alert('请选择或输入写作主题');
       return;
