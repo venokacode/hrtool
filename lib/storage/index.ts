@@ -182,9 +182,9 @@ export class StorageManager {
   /**
    * 获取候选人测试数据
    */
-  static getCandidateTest(testId: string): CandidateTest | null {
+  static getCandidateTest(candidateTestId: string): CandidateTest | null {
     const tests = this.getAllCandidateTests();
-    return tests.find((t) => t.testId === testId) || null;
+    return tests.find((t) => t.id === candidateTestId) || null;
   }
 
   /**
