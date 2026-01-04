@@ -39,6 +39,9 @@ export default function HomePage() {
   const [duration, setDuration] = useState(20);
   const [topic, setTopic] = useState('');
   const [topicDescription, setTopicDescription] = useState('');
+  const [candidateEmail, setCandidateEmail] = useState('');
+  const [candidateName, setCandidateName] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   const {
     register,
@@ -91,6 +94,46 @@ export default function HomePage() {
     const link = generateTestLink(testId);
     setTestLink(link);
     setStep('share');
+
+    // 如果填写了候选人邮箱，自动发送邀请邮件
+    if (candidateEmail && candidateEmail.trim().length > 0) {
+      sendInvitationEmail(link, config);
+    }
+  };
+
+  // 发送邀请邮件
+  const sendInvitationEmail = async (testUrl: string, config: TestConfig) => {
+    if (!hrConfig || !candidateEmail) return;
+
+    setSendingEmail(true);
+    try {
+      const response = await fetch('/api/send-test-invitation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: candidateEmail,
+          candidateName: candidateName || '候选人',
+          hrName: hrConfig.name,
+          companyName: hrConfig.company || '公司',
+          testUrl: testUrl,
+          topic: config.topic,
+          duration: config.duration,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        console.log('邀请邮件发送成功');
+      } else {
+        console.error('邮件发送失败:', result.error);
+      }
+    } catch (error) {
+      console.error('邮件发送错误:', error);
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   const handleReset = () => {
@@ -101,6 +144,8 @@ export default function HomePage() {
     setDuration(20);
     setTopic('');
     setTopicDescription('');
+    setCandidateEmail('');
+    setCandidateName('');
   };
 
   return (
@@ -250,6 +295,42 @@ export default function HomePage() {
                     setTopicDescription(d || '');
                   }}
                 />
+
+                {/* 候选人信息（可选） */}
+                <div className="border-t pt-6 space-y-4">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-900 mb-2">
+                      候选人信息（可选）
+                    </h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                      填写候选人邮箱，系统将自动发送测试邀请邮件
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="candidateName">候选人姓名</Label>
+                    <Input
+                      id="candidateName"
+                      placeholder="请输入候选人姓名"
+                      value={candidateName}
+                      onChange={(e) => setCandidateName(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="candidateEmail">候选人邮箱</Label>
+                    <Input
+                      id="candidateEmail"
+                      type="email"
+                      placeholder="candidate@example.com"
+                      value={candidateEmail}
+                      onChange={(e) => setCandidateEmail(e.target.value)}
+                    />
+                    <p className="text-xs text-gray-500">
+                      填写后将自动发送邀请邮件，也可以空着后手动分享链接
+                    </p>
+                  </div>
+                </div>
 
                 <div className="flex gap-2">
                   <Button

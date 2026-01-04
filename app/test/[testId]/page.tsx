@@ -99,6 +99,49 @@ export default function TestPage({ params }: TestPageProps) {
     setStage('writing');
   };
 
+  // 发送完成通知邮件
+  const sendCompletionEmail = async (candidateTest: CandidateTest) => {
+    if (!candidateInfo || !testConfig || !hrConfig) return;
+
+    try {
+      // 计算评分（简化版，实际应使用完整的评估算法）
+      const wordCount = candidateTest.writingProcess.wordCount;
+      let score = 50;
+      if (wordCount >= 200) score = 80;
+      else if (wordCount >= 150) score = 70;
+      else if (wordCount >= 100) score = 60;
+      
+      const grade = score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 70 ? 'C' : score >= 60 ? 'D' : 'F';
+
+      const response = await fetch('/api/send-test-completion', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          candidateEmail: candidateInfo.email,
+          candidateName: candidateInfo.name,
+          hrEmail: hrConfig.email,
+          hrName: hrConfig.name,
+          score: score,
+          grade: grade,
+          reportUrl: `${window.location.origin}/report/${candidateTest.id}`,
+          hrReportUrl: `${window.location.origin}/hr-reports`,
+          submittedAt: new Date(candidateTest.submittedAt || Date.now()).toISOString(),
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        console.log('完成通知邮件发送成功');
+      } else {
+        console.error('邮件发送失败:', result);
+      }
+    } catch (error) {
+      console.error('邮件发送错误:', error);
+    }
+  };
+
   // 提交测试
   const handleSubmit = async () => {
     if (!candidateInfo || !testConfig || !candidateTestId) return;
@@ -134,6 +177,9 @@ export default function TestPage({ params }: TestPageProps) {
 
     StorageManager.saveCandidateTest(candidateTest);
     setStage('submitted');
+
+    // 发送完成通知邮件
+    sendCompletionEmail(candidateTest);
 
     // 跳转到报告页面
     setTimeout(() => {
